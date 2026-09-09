@@ -10,7 +10,7 @@ const app = express();
 
 // Connect to neon and initialize tables 
 
-initDB()
+await initDB()
 
 const allowedOrigins = process.env.ORIGINS.split(",")
 app.use(cors({origin: "", credentials: true}))
