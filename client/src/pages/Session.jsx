@@ -4,16 +4,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { dummySessions } from '../assets/asset';
 import EmptySessions from '../components/Sessions/EmptySessions';
 import SessionCard from '../components/Sessions/SessionCard';
+import SessionDetailModal from '../components/Sessions/SessionDetailModal';
 const Session = () => {
 
   const [sessions] = useState(dummySessions)
-  const [selectedSession, setSelecteddSession] = useState(null)
+  const [selectedSession, setSelectedSession] = useState(null)
   const navigate = useNavigate()
 
   const openSessionDetail = (sessionId) => {
-    const session = session.find((s)=>s.id === sessionId || s.meetingId === sessionId)
+    const session = sessions.find((s)=>s.id === sessionId || s.meetingId === sessionId)
     if(session){
-      setSelecteddSession(session);
+      setSelectedSession(session);
     }
   }
 
@@ -48,7 +49,7 @@ const Session = () => {
 
 
       {/* Session Detail Modal */}
-      <p>Session Detail Modal</p>
+      <SessionDetailModal session={selectedSession} onClose={()=> setSelectedSession(null)}/>
     </main>
   )
 }
