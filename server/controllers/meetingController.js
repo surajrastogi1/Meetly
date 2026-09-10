@@ -171,7 +171,7 @@ export const getUserSessions = async (req,res) => {
     res.json({meetings:formattedMeetings})
     } catch (error) {
         console.error("get User Session failed:",error)
-        res.status(500).json({ error: "Failed to get user session" })
+        res.status(500).json({ error: "Failed to get user sessions" })
     }
 }
 
