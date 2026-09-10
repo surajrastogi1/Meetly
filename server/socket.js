@@ -4,18 +4,19 @@ import { sql } from "./config/db.js";
 const rooms = new Map();
 
 export function setupSocketIO(io){
-    io.on("connection",()=>(socket)=>{
+    io.on("connection",(socket)=>{
         let currentRoomId = null;
         let currentUser = null;
 
         //User joins a meeting room
-        socket.on("jooin-room", async ({roomId, user, audioEnabled = true, videoEnabled= true}) => {
+        socket.on("join-room", async ({roomId, user, audioEnabled = true, videoEnabled= true}) => {
             try {
                 // Verify meeting status from DB
                 const meetings = await sql`SELECT * FROM meetings WHERE meeting_id = ${roomId}`;
 
                 if(meetings.length === 0){
-                    socket.emit("meeting-ended",{message: "Meeting not found"})
+                    socket.emit("meeting-ended",{message: "Meeting not found"});
+                    return;
                 }
                 const meeting = meetings[0];
 
@@ -106,7 +107,7 @@ export function setupSocketIO(io){
         //Web RTC Signaling: ICE candidate
         // passes the connection details from one user to the other so WebRTC can figure out  how to connect them directly
 
-        socket.on('ice-candidate',( targetSocketId, senderSocketId, candidate )=>{
+        socket.on('ice-candidate',({ targetSocketId, senderSocketId, candidate} )=>{
             io.to(targetSocketId).emit("ice-candidate",{
                 senderSocketId,
                 candidate,
@@ -143,7 +144,7 @@ export function setupSocketIO(io){
                     const senderId = message.senderId || null;
 
                     await sql`
-                    INSERT INTO meeting_messages (meeting_id, sender_id, sender_name, text, timestamps)
+                    INSERT INTO meeting_messages (meeting_id, sender_id, sender_name, text, timestamp)
                         VALUES (${meetingId}, ${senderId}, ${message.senderName || "Anonymous"}, ${message.text}, NOW())`
 
                         io.in(roomId).emit("receive-message",{
@@ -166,7 +167,7 @@ export function setupSocketIO(io){
                         SET status = 'ended', ended_at = NOW()
                         WHERE meeting_id = ${roomId}`;
 
-                        io.on(roomId).emit("meeting-ended", { message: "The meeting has been ended by the host." })
+                        io.to(roomId).emit("meeting-ended", { message: "The meeting has been ended by the host." })
                         rooms.delete(roomId);
 
             } catch (err) {

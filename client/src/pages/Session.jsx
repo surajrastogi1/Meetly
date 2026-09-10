@@ -1,21 +1,53 @@
-import { ArrowLeftIcon } from 'lucide-react';
-import React, { useState } from 'react'
+import { ArrowLeftIcon} from 'lucide-react';
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom';
 import { dummySessions } from '../assets/asset';
 import EmptySessions from '../components/Sessions/EmptySessions';
 import SessionCard from '../components/Sessions/SessionCard';
 import SessionDetailModal from '../components/Sessions/SessionDetailModal';
+import { useAuth } from '@clerk/react-router';
+import api from '../config/api.js';
+import Loader from '../components/Loader.jsx';
 const Session = () => {
 
-  const [sessions] = useState(dummySessions)
+  const [sessions, setSessions] = useState([])
   const [selectedSession, setSelectedSession] = useState(null)
   const navigate = useNavigate()
+  const [loading, setLoading] = useState(true);
 
-  const openSessionDetail = (sessionId) => {
-    const session = sessions.find((s)=>s.id === sessionId || s.meetingId === sessionId)
-    if(session){
-      setSelectedSession(session);
+  const {isLoaded, isSignedIn, getToken} = useAuth()
+
+  useEffect(()=>{
+    const fetchSessions = async () => {
+      if(!isLoaded || !isSignedIn) return;
+
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const res = await api("/api/meetings/sessions",{headers: {Authorization: `Bearer ${token}`,}})
+        setSessions(res.data.meetings || [])
+      } catch (_error) {
+        toast.error("Failed to load meeting sessions");
+      } finally{
+        setLoading(false)
+      }
     }
+
+    fetchSessions();
+  },[isLoaded, isSignedIn, getToken])
+
+  const openSessionDetail = async (sessionId) => {
+    try {
+      const token = await getToken();
+      const res = await api.get(`/api/meetings/sessions/${sessionId}`,{headers: {Authorization: `Bearer ${token}`,}})
+      setSelectedSession(res.data.meeting)
+    } catch (error) {
+      toast.error("Could not fetch session details");
+    }
+  }
+
+  if(loading){
+    return <Loader text='Loading meeting history...'/>
   }
 
   return (

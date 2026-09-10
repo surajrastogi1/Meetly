@@ -1,20 +1,23 @@
-import { ArrowRightIcon, KeyboardIcon, PlusIcon, ShieldCheckIcon, ShieldCloseIcon } from 'lucide-react'
+import { ArrowRightIcon, KeyboardIcon, PlusIcon, ShieldCheckIcon } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
-import { dummyStats, dummyUser } from '../assets/asset'
 import { useNavigate } from 'react-router-dom';
 import toast, {} from 'react-hot-toast'
-import { useUser } from '@clerk/react-router';
+import { useAuth, useUser } from '@clerk/react-router';
+import api from '../config/api.js';
 
 const Dashboard = () => {
 
   const {user} = useUser();
   const userName = user.fullName;
   const userEmail = user.primaryEmailAddress.emailAddress;
+
+  const {isLoaded, isSignedIn, getToken} = useAuth()
+
   const navigate = useNavigate()
 
   const [isCreating , setIsCreating] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const stats = dummyStats;
+  const [stats,setStats] = useState(null);
 
   const [joinId , setJoinId] = useState("")
 
@@ -25,19 +28,48 @@ const Dashboard = () => {
     return ()=> clearInterval(timer)
   },[])
 
-  const handleCreateMeeting = ()=>{
+  useEffect(()=>{
+    const fetchStats = async ()=>{
+      if(!isLoaded || !isSignedIn) return;
+
+      try {
+        const token = await getToken();
+        const { data }  = await api.get("/api/meetings/stats",{
+          headers: { Authorization: `Bearer ${token}` },
+          
+        })
+        setStats(data)
+      } catch (error) {
+        toast.error(error.response?.data?.error || error.message)
+      }
+    };
+    fetchStats();
+  },[isLoaded, isSignedIn, getToken])
+
+  const handleCreateMeeting = async ()=>{
+    if(!isLoaded || !isSignedIn) return;
+
     setIsCreating(true)
-    const chars = "abcdefghijklmnopqrstuvwxyz";
-    const seg = ()=> Array.from({length:3},()=> chars[Math.floor(Math.random()*chars.length)]).join("");
-    const newMeetingId =  `${seg()}-${seg()}-${seg()}`;
     
-    setTimeout(()=>{
+    try {
+      const token = await getToken();
+      const res = await api.post("/api/meetings",{title: `${userName}'s Meeting`},{
+        headers: {
+          Authorization: `Bearer ${token}`,},
+      })
+
+      const meetingId = res.data.meeting.meetingId;
+      toast.success("Meeting Created!");
+      navigate(`/meeting/${meetingId}`)
+    } catch (error) {
+      toast.error(error.response?.data?.error || error.message);
+    } finally{
       setIsCreating(false)
-      toast.success("Meeting created!")
-      navigate(`/meeting/${newMeetingId}`)
-    },400)
+    }
   }
-  const handleJoinMeeting = (e)=>{
+
+
+  const handleJoinMeeting = async (e)=>{
     e.preventDefault();
     const cleanId = joinId.trim();
     if(!/^[a-z]{3}(?:-[a-z]{3}){2}$/.test(cleanId)){
@@ -45,7 +77,13 @@ const Dashboard = () => {
       return;
     }
 
-    navigate(`/meeting/${encodeURIComponent(cleanId)}`)
+    try {
+      const token = await getToken();
+      await api.get(`/api/meeting/${cleanId}`,{headers: {Authorization: `Bearer ${token}`,}})
+      navigate(`/meeting/${cleanId}`);
+    } catch (error) {
+      toast.error("Meeting not found. Check the ID and try again.");
+    }
   }
 
 
